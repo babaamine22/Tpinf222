@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Songo — AMINE vs Machine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;600;700&display=swap');
+
+  :root {
+    --bg:       #2a1800;
+    --card-bg:  #6b3a0f;
+    --hole:     #d4b896;
+    --hole-hover: #c4a07a;
+    --seed:     #c8a96e;
+    --seed-dark:#8b5a2a;
+    --gold:     #f5edd6;
+    --text:     #f5edd6;
+    --muted:    #9a7040;
+    --player1:  #e74c3c;
+    --player2:  #2980b9;
+    --win:      #27ae60;
+    --capture:  #f39c12;
+    --shadow:   rgba(0, 0, 0, 0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #2a1800;
+    background-image:
+      repeating-linear-gradient(88deg,transparent,transparent 60px,rgba(107,58,15,0.08) 60px,rgba(107,58,15,0.08) 61px),
+      repeating-linear-gradient(2deg,transparent,transparent 60px,rgba(107,58,15,0.08) 60px,rgba(107,58,15,0.08) 61px);
+    color: var(--text);
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  h1 {
+    font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 2rem;
+    color: var(--seed);
+    letter-spacing: .12em;
+    margin-bottom: 4px;
+    text-shadow: 0 0 30px rgba(200,169,110,.4);
+  }
+
+  .subtitle { color: var(--muted); font-size:.95rem; margin-bottom:20px; font-weight: 500; }
+
+  /* ── Level selector ── */
+  .level-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .level-btn {
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: 2px solid var(--hole);
+    background: var(--card-bg);
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'SF Pro Display', sans-serif;
+    font-size: .9rem;
+    font-weight: 600;
+    transition: all .2s;
+  }
+  .level-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+  .level-btn.active {
+    background: var(--player2);
+    color: white;
+    border-color: var(--player2);
+  }
+
+  /* ── Scores ── */
+  .scoreboard {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    margin-bottom: 20px;
+    width: 100%;
+    justify-content: center;
+  }
+  .score-card {
+    text-align: center;
+    min-width: 120px;
+    padding: 16px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+  .score-card .name {
+    font-weight: 600;
+    font-size: .85rem;
+    letter-spacing: -.01em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-size: 1rem;
+  }
+  .score-card.p1 .name { color: var(--player1); }
+  .score-card.p2 .name { color: var(--player2); }
+  .score-card .pts {
+    font-family: 'SF Pro Display', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .score-card .pts.p1c { color: var(--player1); }
+  .score-card .pts.p2c { color: var(--player2); }
+
+  .turn-indicator {
+    font-size: .8rem;
+    font-weight: 600;
+    padding: 4px 16px;
+    border-radius: 20px;
+    background: rgba(107,58,15,.5);
+    border: 1px solid rgba(200,169,110,.25);
+    letter-spacing: .06em;
+    color: var(--seed);
+  }
+
+  /* ── Board ── */
+  .board-wrap {
+    background: linear-gradient(160deg, var(--card-bg) 0%, #3a1e06 100%);
+    border-radius: 24px;
+    padding: 22px 28px;
+    box-shadow: 0 12px 50px rgba(0,0,0,.7),
+                inset 0 1px 0 rgba(255,255,255,.06);
+    border: 2px solid #7a4e20;
+    position: relative;
+  }
+
+  .player-label {
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 12px;
+    color: var(--muted);
+  }
+  .player-label.p1 { color: var(--player1); }
+  .player-label.p2 { color: var(--player2); }
+
+  .row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .row.north { flex-direction: row-reverse; }
+
+  .cell {
+    width: 72px;
+    height: 72px;
+    background: var(--hole);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background .18s, transform .12s, box-shadow .18s;
+    position: relative;
+    border: 2px solid rgba(255,255,255,.04);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.5);
+    user-select: none;
+  }
+  .cell:hover:not(.disabled):not(.empty) {
+    background: var(--hole-hover);
+    transform: translateY(-3px);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.5), 0 6px 18px rgba(0,0,0,.4);
+  }
+  .cell.disabled { cursor: not-allowed; opacity: .5; }
+  .cell.empty { cursor: default; }
+  .cell.highlight {
+    background: rgba(212,161,42,.18);
+    border-color: var(--seed);
+    box-shadow: inset 0 3px 8px rgba(0,0,0,.3), 0 0 14px rgba(212,161,42,.35);
+  }
+  .cell .count {
+    font-family: 'SF Pro Display', serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--seed);
+    line-height: 1;
+  }
+  .cell .idx {
+    font-size: .6rem;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  /* seed dots */
+  .seeds-visual {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+    width: 50px;
+    position: absolute;
+    bottom: 8px;
+  }
+  .seed-dot {
+    width: 7px; height: 7px;
+    background: var(--seed);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .seed-dot.extra { background: var(--seed-dark); }
+
+  /* divider */
+  .divider {
+    height: 2px;
+    background: linear-gradient(90deg,transparent,#7a4e20,transparent);
+    margin: 6px 0;
+    border-radius: 2px;
+  }
+
+  /* seed dots */
+  .seeds-visual {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    justify-content: center;
+    width: 50px;
+    position: absolute;
+    bottom: 8px;
+  }
+  .seed-dot {
+    width: 7px; height: 7px;
+    background: var(--seed);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .seed-dot.extra { background: var(--seed-dark); }
+
+  /* ── Message bar ── */
+  #message {
+    margin-top: 20px;
+    padding: 14px 24px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    font-size: .95rem;
+    min-width: 320px;
+    text-align: center;
+    border: none;
+    box-shadow: 0 2px 12px var(--shadow);
+    min-height: 44px;
+    font-weight: 500;
+  }
+  #message.capture { color: var(--capture); }
+  #message.win { color: var(--win); font-weight: 700; font-size: 1.1rem; }
+
+  /* ── Buttons ── */
+  .actions { margin-top: 24px; display: flex; gap: 12px; }
+  button {
+    padding: 12px 28px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-family: 'SF Pro Display', sans-serif;
+    font-size: .95rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    transition: all .15s;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+  button:hover { 
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+  #btn-restart {
+    background: var(--player2);
+    color: white;
+  }
+  #btn-rules {
+    background: rgba(107,58,15,.5);
+    color: var(--seed);
+    border: 1px solid rgba(200,169,110,.35);
+  }
+
+  /* ── Rules modal ── */
+  #rules-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  #rules-modal.open { display: flex; }
+  .modal-box {
+    background: var(--card-bg);
+    border: none;
+    border-radius: 20px;
+    padding: 32px;
+    max-width: 540px;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: var(--text);
+    line-height: 1.8;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+  }
+  .modal-box h2 {
+    font-family: 'SF Pro Display', sans-serif;
+    color: var(--player1);
+    margin-bottom: 18px;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .modal-box h3 {
+    color: var(--player2);
+    margin: 16px 0 6px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .modal-box p { font-size: .95rem; color: var(--muted); }
+  .modal-box .close-btn {
+    margin-top: 24px;
+    background: var(--player2);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 12px;
+  }
+
+  /* anim flash */
+  @keyframes flash {
+    0%,100% { background: var(--hole); }
+    50%      { background: rgba(200,168,75,.25); }
+  }
+  .cell.flash { animation: flash .4s ease; }
+</style>
+</head>
+<body>
+
+<h1>SONGO</h1>
+<p class="subtitle">Jeu de semailles Ekang — Jouez contre la machine</p>
+
+<div class="scoreboard">
+  <div class="score-card p1">
+    <div class="name">🎮 AMINE</div>
+    <div class="pts p1c" id="score1">0</div>
+    <div style="font-size:.72rem;color:var(--muted)">graines</div>
+  </div>
+  <div>
+    <div class="turn-indicator" id="turn-label">Tour : Joueur Sud</div>
+    <div style="font-size:.7rem;color:var(--muted);text-align:center;margin-top:4px" id="total-label">70 graines totales</div>
+  </div>
+  <div class="score-card p2">
+    <div class="name">🤖 Machine</div>
+    <div class="pts p2c" id="score2">0</div>
+    <div style="font-size:.72rem;color:var(--muted)">graines</div>
+  </div>
+</div>
+
+<div class="board-wrap">
+  <div class="player-label p2">← NORD (Machine 🤖) — cases 1→7</div>
+  <div class="row north" id="row-north"></div>
+  <div class="divider"></div>
+  <div class="row south" id="row-south"></div>
+  <div class="player-label p1">AMINE — cases 1→7 →</div>
+</div>
+
+<div id="message">Joueur AMINE, choisissez une case à semer.</div>
+
+<div class="level-selector" id="level-selector">
+  <button class="level-btn active" data-level="easy">🌱 Facile</button>
+  <button class="level-btn" data-level="normal">🎯 Normal</button>
+  <button class="level-btn" data-level="hard">⚡ Difficile</button>
+  <button class="level-btn" data-level="expert">👹 Expert</button>
+</div>
+
+<!-- Audio context for sounds -->
+<audio id="sound-move" preload="auto">
+  <source src="data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==" type="audio/wav">
+</audio>
+<audio id="sound-capture" preload="auto">
+  <source src="data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAAA=" type="audio/wav">
+</audio>
+
+<div class="actions">
+  <button id="btn-restart">↺ Nouvelle partie</button>
+  <button id="btn-rules">📖 Règles</button>
+</div>
+
+<!-- Rules modal -->
+<div id="rules-modal">
+  <div class="modal-box">
+    <h2>Règles du Songo</h2>
+    <h3>Plateau</h3>
+    <p>14 cases (2 rangées de 7). Chaque case démarre avec 5 graines. Total : 70 graines.</p>
+    <h3>Tour de jeu</h3>
+    <p>Ramassez toutes les graines d'une case de votre rangée, puis distribuez-les une par une en allant vers la gauche dans votre camp, puis vers la droite dans le camp adverse (boucle continue). La case d'origine reste vide.</p>
+    <h3>Captures</h3>
+    <p>Vous capturez uniquement dans le camp adverse. Si la dernière graine tombe dans une case adverse (sauf case 1 adverse) contenant 1–3 graines (2–4 après dépôt), vous prenez tout. La chaîne se propage en arrière si les cases précédentes contiennent aussi 2–4 graines.</p>
+    <h3>Règle des 14+ graines</h3>
+    <p>Si vous semez 14 graines ou plus, vous faites un tour complet en sautant la case d'origine, puis continuez exclusivement dans le camp adverse.</p>
+    <h3>Solidarité</h3>
+    <p>Si le camp adverse est vide, vous devez y envoyer au moins 7 graines. Si impossible, envoyez le maximum possible.</p>
+    <h3>Interdits</h3>
+    <p>• Interdit de semer 1 ou 2 graines chez l'adversaire depuis votre case 7.<br>• Interdit de vider complètement le camp adverse (aucune prise si cela arrive).</p>
+    <h3>Fin de partie</h3>
+    <p>• Un joueur atteint ≥ 40 graines → victoire.<br>• Moins de 10 graines sur le plateau → chaque joueur garde son camp.<br>• Solidarité impossible → chaque joueur garde son camp.<br>• Égalité si aucun joueur n'atteint 40.</p>
+    <button class="close-btn" onclick="document.getElementById('rules-modal').classList.remove('open')">Fermer</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  ÉTAT DU JEU
+// ─────────────────────────────────────────────
+// board[0..6]  = rangée SUD  (joueur 1), case 1 = index 0 (à gauche de SUD)
+// board[7..13] = rangée NORD (joueur 2), case 1 = index 7 (à gauche de NORD = à droite visuellement)
+// Sens de semailles : SUD joue de droite→gauche dans son camp (6..0), puis gauche→droite dans NORD (7..13)
+//                    NORD joue de droite→gauche dans son camp (13..7), puis gauche→droite dans SUD (0..6)
+
+const N = 7;
+let board, scores, currentPlayer, gameOver, isAI, aiThinking, aiLevel;
+
+// Niveaux de difficulté
+const LEVELS = {
+  easy: { delay: 2000, accuracy: 0.4 },
+  normal: { delay: 1500, accuracy: 0.65 },
+  hard: { delay: 1200, accuracy: 0.85 },
+  expert: { delay: 900, accuracy: 0.95 }
+};
+
+function initGame() {
+  board = Array(14).fill(5);
+  scores = [0, 0];
+  currentPlayer = 0; // 0=AMINE, 1=Machine
+  gameOver = false;
+  isAI = true;
+  aiThinking = false;
+  aiLevel = 'normal';
+  render();
+  setMessage('AMINE, choisissez une case à semer.');
+}
+
+// Création de sons simples
+function createSound(frequency, duration, type = 'sine') {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.type = type;
+    osc.frequency.value = frequency;
+    gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+    
+    osc.start(audioContext.currentTime);
+    osc.stop(audioContext.currentTime + duration);
+  } catch(e) {
+    console.log('Audio non disponible');
+  }
+}
+
+function playMoveSound() {
+  try {
+    createSound(800, 0.1, 'sine');
+  } catch(e) {
+    console.log('Son mouvement non disponible');
+  }
+}
+
+function playCaptureSound() {
+  try {
+    createSound(1200, 0.2, 'sine');
+    setTimeout(() => createSound(1600, 0.15, 'sine'), 100);
+  } catch(e) {
+    console.log('Son capture non disponible');
+  }
+}
+
+function playWinSound() {
+  try {
+    createSound(1000, 0.15, 'sine');
+    setTimeout(() => createSound(1200, 0.15, 'sine'), 150);
+    setTimeout(() => createSound(1400, 0.3, 'sine'), 300);
+  } catch(e) {
+    console.log('Son victoire non disponible');
+  }
+}
+
+// Indice de la "case 1" pour chaque joueur
+// SUD: cases visuelles 1..7 → indices 0..6, case 1=0, case 7=6
+// NORD: cases visuelles 1..7 → indices 7..13, case 1=7, case 7=13
+// mais NORD joue droite→gauche (depuis case 7=13 vers case 1=7)
+
+function playerRange(p) {
+  return p === 0 ? [0, 6] : [7, 13];
+}
+
+// Séquence de semailles depuis une case donnée
+// Retourne la liste des indices dans l'ordre de dépôt
+function sowSequence(startIdx, count) {
+  // On parcourt : depuis startIdx on descend dans le camp courant,
+  // puis on monte dans le camp adverse, en boucle
+  // Direction SUD (p=0): dans SUD va de start-1 vers 0, puis dans NORD de 7 vers 13
+  // Direction NORD (p=1): dans NORD va de start-1 vers 7 puis dans SUD de 6 vers 0
+  const seq = [];
+  let pos = startIdx;
+
+  function nextPos(p) {
+    if (p === 0) {
+      // SUD player
+      if (pos > 0) return pos - 1;   // continue left in SUD
+      else return 7;                  // jump to NORD start (left of NORD = index 7)
+    } else {
+      // NORD player: right to left in NORD, then left to right in SUD
+      if (pos < 13) return pos + 1;   // continue right in NORD... wait:
+      // NORD: decreasing from 13 to 7, then SUD increasing 0 to 6
+    }
+  }
+
+  // Rebuilt with explicit direction
+  // SUD: sow order = startIdx-1, startIdx-2, ..., 0, 7, 8, ..., 13, 6, 5, ..., startIdx+1 (loop)
+  // NORD: sow order = startIdx+1, ..., 13, 6, 5, ..., 0, 7, 8, ..., startIdx-1 (loop)
+
+  const fullOrder = sowOrder(startIdx, currentPlayer);
+  for (let i = 0; i < count; i++) {
+    seq.push(fullOrder[i % fullOrder.length]);
+  }
+  return seq;
+}
+
+// Returns the full circular sowing order (excluding startIdx) for a player
+function sowOrder(startIdx, player) {
+  const order = [];
+  if (player === 0) {
+    // SUD: left in SUD then right in NORD
+    for (let i = startIdx - 1; i >= 0; i--) order.push(i);
+    for (let i = 7; i <= 13; i++) order.push(i);
+    // wrap: right in SUD (excluding start)
+    for (let i = 6; i >= startIdx + 1; i--) order.push(i);
+    // then NORD again if needed (handled by modulo)
+    // pad to at least 13 more
+    // Full loop = 13 cells; we just generate 13 and use modulo
+  } else {
+    // NORD: right in NORD then left in SUD
+    for (let i = startIdx + 1; i <= 13; i++) order.push(i);
+    for (let i = 6; i >= 0; i--) order.push(i);
+    for (let i = 7; i <= startIdx - 1; i++) order.push(i);
+  }
+  return order; // length = 13
+}
+
+function doMove(cellIdx) {
+  if (gameOver) return;
+  const [lo, hi] = playerRange(currentPlayer);
+  if (cellIdx < lo || cellIdx > hi) return; // not player's cell
+  if (board[cellIdx] === 0) return;
+
+  const count = board[cellIdx];
+  board[cellIdx] = 0;
+
+  // Check 14+ rule: if count >= 14, skip origin, sow rest ONLY in opponent after full loop
+  const seq = buildSowSeq(cellIdx, count);
+
+  // Apply sowing
+  seq.forEach(i => board[i]++);
+
+  const lastCell = seq[seq.length - 1];
+
+  // Capture
+  let captured = 0;
+  const opLo = currentPlayer === 0 ? 7 : 0;
+  const opHi = currentPlayer === 0 ? 13 : 6;
+  const opCase1 = currentPlayer === 0 ? 7 : 6; // case 1 de l'adversaire (pas de capture normale)
+  // opCase1 for SUD: NORD's case 1 = index 7
+  // opCase1 for SUD player: opponent is NORD, case1 of NORD = index 7
+
+  // Check if last cell is in opponent's territory (excluding opponent's case 1 in normal capture)
+  if (lastCell >= opLo && lastCell <= opHi) {
+    const noCapZone = currentPlayer === 0 ? 7 : 6; // no normal 2-4 capture at opponent case 1
+
+    // Chain capture backwards
+    let pos = lastCell;
+    while (pos >= opLo && pos <= opHi) {
+      const v = board[pos];
+      if (v >= 2 && v <= 4) {
+        // Special: no 2-4 capture at opponent case 1 UNLESS it's part of chain from behind
+        if (pos === noCapZone && pos === lastCell) {
+          // normal 2-4 capture forbidden at opponent case 1 as last cell
+          break;
+        }
+        captured += v;
+        board[pos] = 0;
+        // move to previous cell in opponent territory
+        pos = currentPlayer === 0 ? pos - 1 : pos + 1;
+      } else {
+        break;
+      }
+    }
+  }
+
+  scores[currentPlayer] += captured;
+
+  if (captured > 0) playCaptureSound();
+  else playMoveSound();
+
+  // Anti-vide: if opponent territory now empty, no captures were made (already handled above)
+  // Check end conditions
+  const msg = checkEndConditions(captured);
+  if (!msg) {
+    currentPlayer = 1 - currentPlayer;
+    setMessage(captured > 0
+      ? `Capture de ${captured} graine(s) ! Tour : ${playerName(currentPlayer)}.`
+      : `Tour : ${playerName(currentPlayer)}.`);
+    if (captured > 0) document.getElementById('message').className = 'capture';
+    else document.getElementById('message').className = '';
+    
+    // Si c'est au tour de la machine, faire son coup après délai
+    if (currentPlayer === 1 && !gameOver) {
+      aiThinking = true;
+      const level = LEVELS[aiLevel];
+      setTimeout(makeAIMove, level.delay);
+    }
+  }
+
+  render();
+}
+
+function buildSowSeq(startIdx, count) {
+  const order = sowOrder(startIdx, currentPlayer);
+  const seq = [];
+  let remaining = count;
+  let round = 0;
+
+  if (count >= 14) {
+    // special: first complete the full loop (skipping origin), then sow rest ONLY in opponent
+    // First, distribute one full loop of 13 cells
+    const firstLoop = Math.min(13, count);
+    for (let i = 0; i < firstLoop; i++) seq.push(order[i]);
+    remaining = count - 13;
+
+    // Now, continue only in opponent territory
+    const opLo = currentPlayer === 0 ? 7 : 0;
+    const opHi = currentPlayer === 0 ? 13 : 6;
+    const opOrder = currentPlayer === 0
+      ? [7,8,9,10,11,12,13]
+      : [6,5,4,3,2,1,0];
+
+    let opIdx = 0;
+    while (remaining > 0) {
+      seq.push(opOrder[opIdx % opOrder.length]);
+      opIdx++;
+      remaining--;
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      seq.push(order[i % order.length]);
+    }
+  }
+  return seq;
+}
+
+function playerName(p) { return p === 0 ? 'AMINE 🎮' : 'Machine 🤖'; }
+
+function checkEndConditions(captured) {
+  const total = board.reduce((a,b) => a+b, 0);
+  const s1 = scores[0], s2 = scores[1];
+
+  if (s1 >= 40) { endGame(`🔴 Joueur Sud gagne avec ${s1} graines !`); return true; }
+  if (s2 >= 40) { endGame(`🔵 Joueur Nord gagne avec ${s2} graines !`); return true; }
+  if (total < 10) {
+    // each player keeps their camp
+    let extra1 = 0, extra2 = 0;
+    for (let i=0;i<7;i++) { extra1+=board[i]; board[i]=0; }
+    for (let i=7;i<14;i++) { extra2+=board[i]; board[i]=0; }
+    scores[0] += extra1; scores[1] += extra2;
+    const w = scores[0] > scores[1] ? '🔴 Joueur Sud' : scores[1] > scores[0] ? '🔵 Joueur Nord' : 'Personne';
+    endGame(`Fin de partie ! ${w} gagne — Sud: ${scores[0]} vs Nord: ${scores[1]}`);
+    return true;
+  }
+  return false;
+}
+
+function endGame(msg) {
+  gameOver = true;
+  setMessage(msg);
+  document.getElementById('message').className = 'win';
+  playWinSound();
+}
+
+function setMessage(msg) {
+  document.getElementById('message').textContent = msg;
+}
+
+// ─────────────────────────────────────────────
+//  IA - MACHINE LEARNING SIMPLE
+// ─────────────────────────────────────────────
+function getValidMoves() {
+  const [lo, hi] = playerRange(currentPlayer);
+  const moves = [];
+  for (let i = lo; i <= hi; i++) {
+    if (board[i] > 0) moves.push(i);
+  }
+  return moves;
+}
+
+function simulateMove(cellIdx) {
+  // Copie l'état actuel et simule le coup
+  const boardCopy = [...board];
+  const scoresCopy = [...scores];
+  const cpCopy = currentPlayer;
+  
+  const count = boardCopy[cellIdx];
+  boardCopy[cellIdx] = 0;
+  
+  const seq = buildSowSeq(cellIdx, count);
+  seq.forEach(i => boardCopy[i]++);
+  
+  const lastCell = seq[seq.length - 1];
+  
+  let captured = 0;
+  const opLo = cpCopy === 0 ? 7 : 0;
+  const opHi = cpCopy === 0 ? 13 : 6;
+  
+  if (lastCell >= opLo && lastCell <= opHi) {
+    const noCapZone = cpCopy === 0 ? 7 : 6;
+    let pos = lastCell;
+    while (pos >= opLo && pos <= opHi) {
+      const v = boardCopy[pos];
+      if (v >= 2 && v <= 4) {
+        if (pos === noCapZone && pos === lastCell) break;
+        captured += v;
+        boardCopy[pos] = 0;
+        pos = cpCopy === 0 ? pos - 1 : pos + 1;
+      } else {
+        break;
+      }
+    }
+  }
+  
+  return { captured, boardCopy };
+}
+
+function evaluateMove(cellIdx) {
+  // Évalue la qualité d'un coup pour l'IA
+  const sim = simulateMove(cellIdx);
+  const captured = sim.captured;
+  
+  // Bonus pour captures
+  let score = captured * 10;
+  
+  // Bonus pour la diversité (ne pas vider une case trop utile)
+  if (board[cellIdx] <= 2) score += 5;
+  
+  // Bonus pour garder des options
+  const validMoves = getValidMoves().length;
+  score += validMoves * 2;
+  
+  return { move: cellIdx, score };
+}
+
+function makeAIMove() {
+  if (currentPlayer !== 1 || gameOver || !aiThinking) return;
+  
+  const validMoves = getValidMoves();
+  if (validMoves.length === 0) return;
+  
+  // Évalue tous les coups possibles
+  const evaluations = validMoves.map(m => evaluateMove(m));
+  
+  // Trie par score (meilleur d'abord) + un peu d'aléatoire pour varier
+  evaluations.sort((a, b) => b.score - a.score);
+  
+  // Applique la précision du niveau
+  const level = LEVELS[aiLevel];
+  const randomThreshold = 1 - level.accuracy;
+  
+  let choice;
+  if (Math.random() < level.accuracy) {
+    // Prend le meilleur coup
+    choice = evaluations[0];
+  } else {
+    // Prend un coup moins optimal (selon difficulté)
+    const randomIdx = Math.floor(Math.random() * Math.min(validMoves.length, 3));
+    choice = evaluations[randomIdx];
+  }
+  
+  aiThinking = false;
+  doMove(choice.move);
+}
+
+// ─────────────────────────────────────────────
+function render() {
+  document.getElementById('score1').textContent = scores[0];
+  document.getElementById('score2').textContent = scores[1];
+
+  const total = board.reduce((a,b) => a+b, 0);
+  document.getElementById('total-label').textContent = `${total} graines sur le plateau`;
+
+  const turnColors = ['var(--player1)','var(--player2)'];
+  const tl = document.getElementById('turn-label');
+  tl.textContent = gameOver ? 'Partie terminée' : `Tour : ${playerName(currentPlayer)}`;
+  tl.style.color = gameOver ? 'var(--muted)' : turnColors[currentPlayer];
+
+  renderRow('row-north', 7, 13, 1, /* reversed= */ true);
+  renderRow('row-south', 0, 6,  0, false);
+}
+
+function renderRow(id, lo, hi, player, reversed) {
+  const row = document.getElementById(id);
+  row.innerHTML = '';
+  const indices = [];
+  for (let i = lo; i <= hi; i++) indices.push(i);
+  // visual display: SUD → left=case1(idx0), right=case7(idx6)
+  //                 NORD → left=case7(idx13), right=case1(idx7) (reversed)
+
+  indices.forEach((idx) => {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const count = board[idx];
+
+    const isMyCell = player === currentPlayer && !gameOver;
+    const canPlay = isMyCell && count > 0 && currentPlayer === 0; // Seulement le joueur humain peut cliquer
+
+    if (!canPlay) cell.classList.add(count === 0 ? 'empty' : 'disabled');
+    if (canPlay) cell.classList.add('highlight');
+
+    // Number
+    const countEl = document.createElement('div');
+    countEl.className = 'count';
+    countEl.textContent = count;
+    cell.appendChild(countEl);
+
+    // Seeds visual (up to 8 dots)
+    if (count > 0) {
+      const vis = document.createElement('div');
+      vis.className = 'seeds-visual';
+      const show = Math.min(count, 8);
+      for (let d = 0; d < show; d++) {
+        const dot = document.createElement('div');
+        dot.className = 'seed-dot' + (d >= 8 ? ' extra' : '');
+        vis.appendChild(dot);
+      }
+      cell.appendChild(vis);
+    }
+
+    // Case number label
+    // SUD: case visible = idx+1 (1..7), NORD: case visible = idx-6 (1..7)
+    const caseNum = player === 0 ? idx + 1 : idx - 6;
+    const lbl = document.createElement('div');
+    lbl.className = 'idx';
+    lbl.textContent = `c${caseNum}`;
+    cell.appendChild(lbl);
+
+    if (canPlay) {
+      cell.addEventListener('click', () => {
+        doMove(idx);
+      });
+    }
+
+    row.appendChild(cell);
+  });
+}
+
+// ─────────────────────────────────────────────
+//  EVENTS
+// ─────────────────────────────────────────────
+document.getElementById('btn-restart').addEventListener('click', initGame);
+document.getElementById('btn-rules').addEventListener('click', () => {
+  document.getElementById('rules-modal').classList.add('open');
+});
+
+// Level selector
+document.querySelectorAll('.level-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    aiLevel = e.target.getAttribute('data-level');
+    initGame();
+  });
+});
+
+initGame();
+</script>
+</body>
+</html>
